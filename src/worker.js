@@ -6,6 +6,7 @@ const PHASES = {
   GUESS: "guess",
   REVEAL: "reveal",
 };
+const VIEW_MS = 30_000;
 const GUESS_MS = 30_000;
 const MAX_PLAYERS = 12;
 const GRACE_MS = 15_000; // keep a disconnected player around this long for reconnect
@@ -240,11 +241,6 @@ export class GameRoom {
           await this.startNewRound();
         }
         break;
-      case "next":
-        if (playerId === this.hostId && this.phase === PHASES.VIEW) {
-          this.startGuessPhase();
-        }
-        break;
       case "guess":
         if (this.phase === PHASES.GUESS
             && typeof msg.lat === "number" && typeof msg.lng === "number"
@@ -378,7 +374,9 @@ export class GameRoom {
       }
       this.roundNum++;
       this.phase = PHASES.VIEW;
-      this.phaseEndAt = null;
+      this.phaseEndAt = Date.now() + VIEW_MS;
+      this.clearTimer();
+      this.timer = setTimeout(() => this.startGuessPhase(), VIEW_MS);
       this.broadcast();
     } finally {
       this.starting = false;

@@ -464,9 +464,8 @@
       ROUND <span class="round-num" id="roundNum">1</span> · どこの都市？
     </div>
     <div class="images-grid" id="imagesGrid"></div>
-    <div class="footer-actions">
-      <button class="btn btn-primary" id="toGuessBtn" style="display:none">推測スタート</button>
-      <div class="status-line" id="viewStatus"></div>
+    <div class="status-line">
+      残り <span id="viewTimer" style="color:#6ec1ff;font-weight:800;font-size:14px;">30</span> 秒で推測フェーズへ
     </div>
   </div>
 
@@ -520,9 +519,8 @@
       <ol>
         <li>同じ <b>ルームコード</b> で全員 JOIN</li>
         <li>ホストが <b>START</b> を押すと、サーバーが世界の都市から1つ選んでWikipediaの写真を <b>8枚</b> 取得</li>
-        <li>全員で写真を見て、どこの都市か考える</li>
-        <li>ホストが <b>推測スタート</b> を押すと、各自のスマホでマップが表示される</li>
-        <li>マップをタップしてピンを置き、<b>確定</b> を押す（制限時間 30秒）</li>
+        <li><b>30秒</b> 写真を観察（自動的に次へ）</li>
+        <li>各自のスマホのマップにピンを置き、<b>確定</b> を押す（制限時間 30秒）</li>
         <li>全員揃うか時間切れで一斉に答え合わせ</li>
       </ol>
     </div>
@@ -553,7 +551,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = "v0.2.3";
+const APP_VERSION = "v0.3.0";
 document.getElementById("versionTag").textContent = APP_VERSION;
 
 const PHASES = {
@@ -851,7 +849,6 @@ function renderLoading() {
 // ===== View =====
 function renderView() {
   showScreen("view");
-  cleanupTimers();
   $("roundNum").textContent = serverState.roundNum;
 
   const images = serverState.images || [];
@@ -872,9 +869,14 @@ function renderView() {
     });
   }
 
-  const isHost = serverState.you === serverState.hostId;
-  $("toGuessBtn").style.display = isHost ? "" : "none";
-  $("viewStatus").textContent = isHost ? "じっくり見て、推測スタートでマップへ" : "ホストが推測スタートを押すのを待っています";
+  cleanupTimers();
+  const update = () => {
+    const remain = Math.max(0, Math.ceil((serverState.phaseEndAt - Date.now()) / 1000));
+    $("viewTimer").textContent = remain;
+    if (remain <= 0) cleanupTimers();
+  };
+  update();
+  timerInterval = setInterval(update, 250);
 }
 
 // ===== Guess =====
@@ -1114,7 +1116,6 @@ $("enterBtn").addEventListener("click", () => {
 });
 
 $("startBtn").addEventListener("click", () => send({ type: "start" }));
-$("toGuessBtn").addEventListener("click", () => send({ type: "next" }));
 $("nextRoundBtn").addEventListener("click", () => send({ type: "nextRound" }));
 $("endRoundBtn").addEventListener("click", () => send({ type: "endRound" }));
 $("leaveBtn").addEventListener("click", disconnect);
