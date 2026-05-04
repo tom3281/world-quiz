@@ -473,7 +473,7 @@
   <!-- GUESS -->
   <div class="screen" id="guessScreen">
     <div class="guess-header">
-      <div class="timer" id="guessTimer">60</div>
+      <div class="timer" id="guessTimer">30</div>
       <div class="progress-text" id="guessProgress">0 / 0 人が回答済み</div>
     </div>
     <div class="guess-instruction" id="guessInstruction">マップをタップしてピンを置く</div>
@@ -522,7 +522,7 @@
         <li>ホストが <b>START</b> を押すと、サーバーが世界の都市から1つ選んでWikipediaの写真を <b>8枚</b> 取得</li>
         <li>全員で写真を見て、どこの都市か考える</li>
         <li>ホストが <b>推測スタート</b> を押すと、各自のスマホでマップが表示される</li>
-        <li>マップをタップしてピンを置き、<b>確定</b> を押す（制限時間 60秒）</li>
+        <li>マップをタップしてピンを置き、<b>確定</b> を押す（制限時間 30秒）</li>
         <li>全員揃うか時間切れで一斉に答え合わせ</li>
       </ol>
     </div>
@@ -553,7 +553,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = "v0.2.2";
+const APP_VERSION = "v0.2.3";
 document.getElementById("versionTag").textContent = APP_VERSION;
 
 const PHASES = {

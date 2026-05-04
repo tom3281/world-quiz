@@ -6,7 +6,7 @@ const PHASES = {
   GUESS: "guess",
   REVEAL: "reveal",
 };
-const GUESS_MS = 60_000;
+const GUESS_MS = 30_000;
 const MAX_PLAYERS = 12;
 const GRACE_MS = 15_000; // keep a disconnected player around this long for reconnect
 
