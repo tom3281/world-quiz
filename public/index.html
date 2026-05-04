@@ -157,13 +157,33 @@
   /* Lightbox */
   .lightbox {
     position: fixed; inset: 0; z-index: 2000;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
     background: rgba(0,0,0,0.94);
     opacity: 0; pointer-events: none; transition: opacity .2s;
-    padding: 16px;
+    padding: 16px; gap: 10px;
   }
   .lightbox.show { opacity: 1; pointer-events: auto; }
-  .lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+  .lightbox img { max-width: 100%; max-height: calc(100% - 40px); border-radius: 8px; }
+  .lightbox-attr {
+    font-size: 11px; line-height: 1.4; letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.65); text-align: center;
+    max-width: 100%; padding: 0 8px;
+    word-break: break-word;
+  }
+  .lightbox-attr a { color: rgba(255,255,255,0.85); text-decoration: underline; }
+  .lightbox-attr .lic { color: rgba(110,193,255,0.85); }
+
+  /* Per-tile small attribution under each thumbnail (compact view) */
+  .img-tile .credit {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 3px 6px;
+    font-size: 9px; line-height: 1.2; letter-spacing: 0.3px;
+    color: rgba(255,255,255,0.85);
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    pointer-events: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
 
   /* Guess */
   .guess-header {
@@ -506,7 +526,10 @@
 
 </div>
 
-<div class="lightbox" id="lightbox"><img id="lightboxImg" src="" alt=""></div>
+<div class="lightbox" id="lightbox">
+  <img id="lightboxImg" src="" alt="">
+  <div class="lightbox-attr" id="lightboxAttr"></div>
+</div>
 <div class="toast" id="toast"></div>
 <div class="version-tag" id="versionTag"></div>
 
@@ -630,6 +653,21 @@ const FUNNY_NAMES = [
 ];
 function randomFunnyName() {
   return FUNNY_NAMES[Math.floor(Math.random() * FUNNY_NAMES.length)];
+}
+
+// Build the attribution line shown when an image is opened in the lightbox.
+// The server only sends a license-cleared subset (CC0 / PD / CC-BY / CC-BY-SA),
+// but CC-BY-* explicitly requires attribution, so we display author + license
+// + a link back to the Wikimedia Commons file page on every image.
+function formatAttr(d) {
+  const artist = (d.attr || "").trim();
+  const license = (d.license || "").trim();
+  const source = (d.source || "").trim();
+  const parts = [];
+  if (artist) parts.push(`📷 ${escapeHtml(artist)}`);
+  if (license) parts.push(`<span class="lic">${escapeHtml(license)}</span>`);
+  if (source) parts.push(`<a href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a>`);
+  return parts.join(" · ");
 }
 try {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
@@ -851,19 +889,30 @@ function renderView() {
   showScreen("view");
   $("roundNum").textContent = serverState.roundNum;
 
-  const images = serverState.images || [];
-  const imagesKey = images.join("|");
+  // Server now sends image objects: { src, attribution, license, sourceUrl }.
+  // Tolerate the old plain-URL shape during a brief deploy window so a stale
+  // client doesn't crash on a fresh server response.
+  const raw = serverState.images || [];
+  const images = raw.map(it => typeof it === "string"
+    ? { src: it, attribution: "", license: "", sourceUrl: "" }
+    : it);
+  const imagesKey = images.map(im => im.src).join("|");
   if ($("imagesGrid").dataset.key !== imagesKey) {
     $("imagesGrid").dataset.key = imagesKey;
-    $("imagesGrid").innerHTML = images.map((src, i) => `
-      <div class="img-tile" data-src="${escapeHtml(src)}">
+    $("imagesGrid").innerHTML = images.map((im, i) => `
+      <div class="img-tile"
+           data-src="${escapeHtml(im.src)}"
+           data-attr="${escapeHtml(im.attribution || "")}"
+           data-license="${escapeHtml(im.license || "")}"
+           data-source="${escapeHtml(im.sourceUrl || "")}">
         <span class="num">${i + 1}</span>
-        <img src="${escapeHtml(src)}" alt="image ${i + 1}" loading="lazy">
+        <img src="${escapeHtml(im.src)}" alt="image ${i + 1}" loading="lazy">
       </div>
     `).join("");
     document.querySelectorAll("#imagesGrid .img-tile").forEach(t => {
       t.addEventListener("click", () => {
         $("lightboxImg").src = t.dataset.src;
+        $("lightboxAttr").innerHTML = formatAttr(t.dataset);
         $("lightbox").classList.add("show");
       });
     });

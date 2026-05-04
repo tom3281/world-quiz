@@ -54,24 +54,78 @@ const CITIES = [
 // Skip flags / coats of arms / locator maps / generic diagrams.
 const BAD_PATTERNS = /(flag|coat[_-]of[_-]arms|seal[_-]of|logo[_-]|^map[_-]|[_-]map$|\bmap_of|location[_-]map|locator|wappen|gemeindewappen|infobox|wikidata|crest)/i;
 
+// License whitelist for commercial use.
+//   - Public domain / CC0: no attribution legally required, but we attribute anyway
+//   - CC-BY / CC-BY-SA (any version): attribution required, no NC/ND restriction
+// Anything else (CC-BY-NC, CC-BY-ND, "fair use", "non-free", "all rights reserved")
+// is excluded so a paid App Store release can ship the same images without
+// re-licensing risk.
+const SAFE_LICENSE = /^(cc0|public[\s-]?domain|pd|cc[\s-]?by(?:[\s-]?sa)?(?:[\s-]?\d)?)\b/i;
+const UNSAFE_LICENSE = /(non[\s-]?free|fair[\s-]?use|nc|nd|copyright|all\s*rights|restricted)/i;
+
+function stripHtml(s) {
+  if (!s) return "";
+  return String(s).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 async function fetchCityImages(wikiTitle) {
-  const url = `https://en.wikipedia.org/api/rest_v1/page/media-list/${wikiTitle}`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "WorldQuiz/0.1 (https://world-quiz.tom3281.workers.dev/)" },
+  // Step 1: pull the media list from the article (titles only)
+  const listUrl = `https://en.wikipedia.org/api/rest_v1/page/media-list/${wikiTitle}`;
+  const listRes = await fetch(listUrl, {
+    headers: { "User-Agent": "WorldQuiz/0.2 (https://world-quiz.tom3281.workers.dev/; commons-licensed-only)" },
   });
-  if (!res.ok) throw new Error("HTTP " + res.status);
-  const data = await res.json();
-  const items = (data.items || []).filter(it => it.type === "image");
-  const photos = items.filter(it => {
-    const title = it.title || "";
-    if (!/\.(jpe?g)$/i.test(title)) return false;
-    if (BAD_PATTERNS.test(title.replace(/^File:/, ""))) return false;
-    return true;
+  if (!listRes.ok) throw new Error("HTTP " + listRes.status);
+  const listData = await listRes.json();
+  const items = (listData.items || []).filter(it => it.type === "image");
+  const candidates = items
+    .filter(it => /\.(jpe?g)$/i.test(it.title || ""))
+    .filter(it => !BAD_PATTERNS.test((it.title || "").replace(/^File:/, "")));
+
+  if (candidates.length === 0) return [];
+
+  // Step 2: batch-fetch license + attribution metadata via the MediaWiki
+  // Action API. The REST media-list endpoint doesn't include license info.
+  // Cap at 50 (API limit) and split into pages if needed.
+  const titles = candidates.slice(0, 50).map(it => it.title);
+  const params = new URLSearchParams({
+    action: "query",
+    format: "json",
+    formatversion: "2",
+    prop: "imageinfo",
+    iiprop: "url|extmetadata",
+    iiurlwidth: "800",
+    iiextmetadatafilter: "License|LicenseShortName|UsageTerms|Artist|Credit|AttributionRequired",
+    titles: titles.join("|"),
   });
-  return photos.map(it => {
-    const fileName = (it.title || "").replace(/^File:/, "");
-    return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(fileName)}?width=800`;
+  const metaRes = await fetch(`https://en.wikipedia.org/w/api.php?${params}`, {
+    headers: { "User-Agent": "WorldQuiz/0.2 (https://world-quiz.tom3281.workers.dev/; commons-licensed-only)" },
   });
+  if (!metaRes.ok) throw new Error("HTTP " + metaRes.status);
+  const metaData = await metaRes.json();
+  const pages = metaData.query?.pages || [];
+
+  const out = [];
+  for (const p of pages) {
+    const info = p.imageinfo?.[0];
+    if (!info) continue;
+    const m = info.extmetadata || {};
+    const licenseRaw = (m.LicenseShortName?.value || m.UsageTerms?.value || "").trim();
+    // Reject non-free / fair-use / NC / ND outright
+    if (UNSAFE_LICENSE.test(licenseRaw)) continue;
+    // Require an explicit safe-license match — no license info means we can't ship it
+    if (!SAFE_LICENSE.test(licenseRaw)) continue;
+
+    const artist = stripHtml(m.Artist?.value).slice(0, 80) || "Unknown";
+    const fileName = (p.title || "").replace(/^File:/, "");
+    out.push({
+      src: info.thumburl || info.url,
+      attribution: artist,
+      license: licenseRaw,
+      sourceUrl: info.descriptionurl
+        || `https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title || "")}`,
+    });
+  }
+  return out;
 }
 
 function pickRandom(arr, n) {
