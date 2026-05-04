@@ -321,6 +321,97 @@
     pointer-events: none;
     z-index: 50;
   }
+
+  /* Rules link / overlay */
+  .rules-link {
+    margin-top: 12px;
+    background: transparent; border: none;
+    color: rgba(110,193,255,0.85);
+    font-family: inherit; font-size: 13px;
+    letter-spacing: 2px;
+    cursor: pointer; padding: 8px;
+    text-decoration: underline; text-underline-offset: 4px;
+    width: 100%;
+  }
+  .rules-link:active { opacity: 0.6; }
+  .rules-overlay {
+    position: fixed; inset: 0; z-index: 1100;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.85);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+    padding: 20px;
+  }
+  .rules-overlay.show { opacity: 1; pointer-events: auto; }
+  .rules-card {
+    background: linear-gradient(180deg, #1a2848 0%, #0f1730 100%);
+    border: 1px solid rgba(110,193,255,0.4);
+    border-radius: 18px;
+    padding: 24px 22px 18px;
+    max-width: 440px; width: 100%;
+    max-height: 85dvh; overflow-y: auto;
+    color: #fff;
+    transform: scale(0.92) translateY(8px);
+    transition: transform .3s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 32px rgba(110,193,255,0.18);
+  }
+  .rules-overlay.show .rules-card { transform: scale(1) translateY(0); }
+  .rules-title {
+    font-size: 13px; letter-spacing: 5px;
+    color: #6ec1ff; text-align: center;
+    margin: 0 0 18px; font-weight: 700;
+  }
+  .rules-section { margin-bottom: 18px; }
+  .rules-section h4 {
+    font-size: 11px; letter-spacing: 3px;
+    color: #6ec1ff; margin: 0 0 8px;
+    font-weight: 600; opacity: 0.85;
+  }
+  .rules-section ol {
+    padding-left: 22px; margin: 0;
+    font-size: 13px; line-height: 1.65;
+  }
+  .rules-section ol li { margin-bottom: 6px; }
+  .rules-section .penalty-list {
+    list-style: none; padding: 0; margin: 0;
+    font-size: 13px; line-height: 1.5;
+  }
+  .rules-section .penalty-list li {
+    padding: 8px 12px; margin-bottom: 6px;
+    background: rgba(0,0,0,0.3);
+    border-left: 3px solid;
+    border-radius: 6px;
+  }
+  .rules-section .penalty-list .win  { border-color: #ffd76e; }
+  .rules-section .penalty-list .lose { border-color: #ff5e6e; }
+  .rules-section .penalty-list .miss { border-color: #8a8a92; }
+  .rules-section .penalty-list b {
+    color: #6ec1ff; letter-spacing: 1px; margin-right: 6px;
+  }
+  .rules-tip {
+    background: rgba(110,193,255,0.08);
+    border: 1px solid rgba(110,193,255,0.25);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px; line-height: 1.55;
+  }
+  .rules-close {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 10px;
+    color: #fff; font-family: inherit;
+    font-size: 14px; letter-spacing: 4px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .rules-close:active {
+    background: rgba(255,255,255,0.06);
+    transform: translateY(1px);
+  }
 </style>
 </head>
 <body>
@@ -341,6 +432,7 @@
       <input id="roomInput" type="text" placeholder="既存ルームのコード（空なら新規作成）" maxlength="6" autocomplete="off" value="KK2022" style="text-transform:uppercase;letter-spacing:2px;">
     </div>
     <button class="btn btn-primary" id="enterBtn">JOIN</button>
+    <button class="rules-link" id="rulesBtn">ルールを見る</button>
   </div>
 
   <!-- LOBBY -->
@@ -419,11 +511,49 @@
 <div class="toast" id="toast"></div>
 <div class="version-tag" id="versionTag"></div>
 
+<div class="rules-overlay" id="rulesOverlay">
+  <div class="rules-card">
+    <h3 class="rules-title">RULES · 遊び方</h3>
+
+    <div class="rules-section">
+      <h4>進行</h4>
+      <ol>
+        <li>同じ <b>ルームコード</b> で全員 JOIN</li>
+        <li>ホストが <b>START</b> を押すと、サーバーが世界の都市から1つ選んでWikipediaの写真を <b>8枚</b> 取得</li>
+        <li>全員で写真を見て、どこの都市か考える</li>
+        <li>ホストが <b>推測スタート</b> を押すと、各自のスマホでマップが表示される</li>
+        <li>マップをタップしてピンを置き、<b>確定</b> を押す（制限時間 60秒）</li>
+        <li>全員揃うか時間切れで一斉に答え合わせ</li>
+      </ol>
+    </div>
+
+    <div class="rules-section">
+      <h4>罰ゲーム</h4>
+      <ul class="penalty-list">
+        <li class="win"><b>1番近い人</b>セーフ（🏆）</li>
+        <li class="lose"><b>1番遠い人</b>1杯（🍺）</li>
+        <li class="lose"><b>同距離タイ（最遠）</b>該当者全員1杯</li>
+        <li class="miss"><b>時間切れで未回答</b>1杯</li>
+      </ul>
+    </div>
+
+    <div class="rules-section">
+      <h4>Tips</h4>
+      <div class="rules-tip">
+        写真をタップで拡大表示。ヒントになる文字や建物・標識をじっくり見ると当てやすい。<br>
+        ピンは確定するまで何度でも置き直せる。
+      </div>
+    </div>
+
+    <button class="rules-close" id="rulesCloseBtn">CLOSE</button>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
 
-const APP_VERSION = "v0.2.1";
+const APP_VERSION = "v0.2.2";
 document.getElementById("versionTag").textContent = APP_VERSION;
 
 const PHASES = {
@@ -961,6 +1091,13 @@ function cleanupTimers() {
 
 $("lightbox").addEventListener("click", () => {
   $("lightbox").classList.remove("show");
+});
+
+const rulesOverlay = $("rulesOverlay");
+$("rulesBtn").addEventListener("click", () => rulesOverlay.classList.add("show"));
+$("rulesCloseBtn").addEventListener("click", () => rulesOverlay.classList.remove("show"));
+rulesOverlay.addEventListener("click", (e) => {
+  if (e.target === rulesOverlay) rulesOverlay.classList.remove("show");
 });
 
 $("enterBtn").addEventListener("click", () => {
