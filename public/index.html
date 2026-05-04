@@ -237,6 +237,40 @@
   .answer-banner .label { font-size: 10px; letter-spacing: 4px; color: rgba(255,255,255,0.6); }
   .answer-banner .city-name { font-size: 24px; font-weight: 900; color: #ffd76e; margin-top: 2px; letter-spacing: 2px; }
 
+  .drink-banner {
+    text-align: center;
+    padding: 16px 14px 18px;
+    background: linear-gradient(90deg, transparent, rgba(255,40,60,0.22), transparent);
+    border-top: 1px solid rgba(255,40,60,0.5);
+    border-bottom: 1px solid rgba(255,40,60,0.5);
+    margin: 0 -16px 14px;
+    animation: drinkBannerPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes drinkBannerPulse {
+    0%, 100% { background: linear-gradient(90deg, transparent, rgba(255,40,60,0.18), transparent); }
+    50%      { background: linear-gradient(90deg, transparent, rgba(255,40,60,0.35), transparent); }
+  }
+  .drink-banner .label {
+    font-size: 11px; letter-spacing: 5px;
+    color: rgba(255,255,255,0.85);
+    font-weight: 700;
+  }
+  .drink-banner .drinker-list {
+    font-size: 24px; font-weight: 900;
+    color: #ff5e6e;
+    margin-top: 6px; letter-spacing: 2px;
+    text-shadow: 0 0 16px rgba(255,40,60,0.7);
+    line-height: 1.3;
+    word-break: keep-all;
+  }
+  .drink-banner .drinker-list .cup {
+    font-size: 14px; font-weight: 700;
+    color: #fff;
+    margin-left: 4px;
+    letter-spacing: 1px;
+  }
+  .drink-banner.empty { display: none; }
+
   .reveal-list {
     display: flex; flex-direction: column;
     gap: 6px; margin-bottom: 12px;
@@ -366,6 +400,10 @@
       <div class="label">ANSWER</div>
       <div class="city-name" id="answerCityName">-</div>
     </div>
+    <div class="drink-banner" id="drinkBanner">
+      <div class="label">🍺 DRINK 🍺</div>
+      <div class="drinker-list" id="drinkerList">-</div>
+    </div>
     <div id="revealMapEl"></div>
     <div class="reveal-list" id="revealList"></div>
     <div class="footer-actions">
@@ -385,7 +423,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = "v0.2.0";
+const APP_VERSION = "v0.2.1";
 document.getElementById("versionTag").textContent = APP_VERSION;
 
 const PHASES = {
@@ -802,6 +840,20 @@ function renderReveal() {
   const playerById = new Map(players.map(p => [p.id, p]));
   const sorted = [...result.guesses].sort((a, b) => a.distanceKm - b.distanceKm);
   const losers = new Set(result.losers || []);
+
+  // Big "DRINK" banner — list every player who has to drink this round
+  const drinkBanner = $("drinkBanner");
+  const drinkerNames = (result.losers || [])
+    .map(id => playerById.get(id))
+    .filter(Boolean)
+    .map(p => `${escapeHtml(p.name)}<span class="cup">1杯</span>`);
+  if (drinkerNames.length === 0) {
+    drinkBanner.classList.add("empty");
+    $("drinkerList").innerHTML = "";
+  } else {
+    drinkBanner.classList.remove("empty");
+    $("drinkerList").innerHTML = drinkerNames.join(" / ");
+  }
 
   const rows = [];
   sorted.forEach((g, i) => {
