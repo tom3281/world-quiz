@@ -919,7 +919,12 @@ function renderView() {
     document.querySelectorAll("#imagesGrid .img-tile").forEach(t => {
       t.addEventListener("click", () => {
         $("lightboxImg").src = t.dataset.src;
-        $("lightboxAttr").innerHTML = formatAttr(t.dataset);
+        // Attribution leaks the answer (photographer credits like
+        // "Tokyo skyline" or the Wikimedia Commons file page URL with
+        // "File:Tokyo_Tower.jpg"). Only show it once REVEAL phase has
+        // started — until then keep the lightbox image-only.
+        const isReveal = serverState && serverState.phase === "reveal";
+        $("lightboxAttr").innerHTML = isReveal ? formatAttr(t.dataset) : "";
         $("lightbox").classList.add("show");
       });
     });
